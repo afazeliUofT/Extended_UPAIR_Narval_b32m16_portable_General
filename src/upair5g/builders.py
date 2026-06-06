@@ -290,6 +290,147 @@ def _build_bs_array(num_ant: int, carrier_frequency: float) -> Any:
     )
 
 
+
+def _channel_family(cfg: dict[str, Any]) -> str:
+    value = get_cfg(cfg, "channel.family", None)
+    if value is None:
+        value = get_cfg(cfg, "channel.model", "cdl")
+    return str(value).strip().lower()
+
+
+def _build_panel_array_from_shape(
+    *,
+    num_rows: int,
+    num_cols: int,
+    carrier_frequency: float,
+    antenna_pattern: str,
+) -> Any:
+    PanelArray = resolve_attr(["sionna.phy.channel.tr38901", "sionna.channel.tr38901"], "PanelArray")
+    return instantiate_filtered(
+        PanelArray,
+        num_rows_per_panel=int(num_rows),
+        num_cols_per_panel=int(num_cols),
+        polarization="single",
+        polarization_type="V",
+        antenna_pattern=str(antenna_pattern),
+        carrier_frequency=float(carrier_frequency),
+    )
+
+
+def _build_umi_channel_model(cfg: dict[str, Any], num_users: int) -> Any:
+    UMi = resolve_attr(["sionna.phy.channel.tr38901", "sionna.channel.tr38901"], "UMi")
+    channel_cfg = cfg["channel"]
+    umi_cfg = channel_cfg.get("umi", {})
+    pusch_cfg = cfg["pusch"]
+    carrier_frequency = float(pusch_cfg["carrier_frequency_hz"])
+    ut_array = _build_panel_array_from_shape(
+        num_rows=int(umi_cfg.get("ut_array_rows", 1)),
+        num_cols=int(umi_cfg.get("ut_array_cols", max(1, int(channel_cfg.get("num_tx_ant", 1))))),
+        carrier_frequency=carrier_frequency,
+        antenna_pattern=str(umi_cfg.get("antenna_pattern_ut", "omni")),
+    )
+    bs_array = _build_panel_array_from_shape(
+        num_rows=int(umi_cfg.get("bs_array_rows", 4)),
+        num_cols=int(umi_cfg.get("bs_array_cols", max(1, int(channel_cfg.get("num_rx_ant", 16)) // 4))),
+        carrier_frequency=carrier_frequency,
+        antenna_pattern=str(umi_cfg.get("antenna_pattern_bs", "38.901")),
+    )
+    kwargs = {
+        "carrier_frequency": carrier_frequency,
+        "o2i_model": str(umi_cfg.get("o2i_model", "low")),
+        "ut_array": ut_array,
+        "bs_array": bs_array,
+        "direction": "uplink",
+        "enable_pathloss": bool(umi_cfg.get("enable_pathloss", False)),
+        "enable_shadow_fading": bool(umi_cfg.get("enable_shadow_fading", False)),
+        "always_generate_lsp": bool(umi_cfg.get("always_generate_lsp", False)),
+        "precision": get_cfg(cfg, "system.precision", "single"),
+    }
+    try:
+        return instantiate_filtered(UMi, **kwargs)
+    except Exception:
+        kwargs.pop("precision", None)
+        return instantiate_filtered(UMi, **kwargs)
+
+
+def _topology_kwargs_for_umi(cfg: dict[str, Any], *, batch_size: int, num_users: int) -> dict[str, Any]:
+    channel_cfg = cfg["channel"]
+    umi_cfg = channel_cfg.get("umi", {})
+    kwargs: dict[str, Any] = {"batch_size": int(batch_size), "num_ut": int(num_users), "scenario": str(umi_cfg.get("scenario", "umi"))}
+    optional_map = {
+        "min_bs_ut_dist": "min_bs_ut_dist",
+        "isd": "isd",
+        "bs_height": "bs_height",
+        "min_ut_height": "min_ut_height",
+        "max_ut_height": "max_ut_height",
+        "indoor_probability": "indoor_probability",
+        "min_ut_velocity": "min_ut_velocity_mps",
+        "max_ut_velocity": "max_ut_velocity_mps",
+    }
+    for api_name, cfg_name in optional_map.items():
+        value = umi_cfg.get(cfg_name, None)
+        if value is not None:
+            kwargs[api_name] = float(value)
+    return kwargs
+
+
+class TopologyRefreshingOFDMChannel:
+    def __init__(self, channel_model: Any, ofdm_channel: Any, cfg: dict[str, Any], num_users: int) -> None:
+        self.channel_model = channel_model
+        self.ofdm_channel = ofdm_channel
+        self.cfg = cfg
+        self.num_users = int(num_users)
+        self.return_channel = True
+        self._last_topology_batch_size: int | None = None
+
+    def _batch_size_from_x(self, x: tf.Tensor) -> int:
+        static = x.shape[0]
+        if static is not None:
+            return int(static)
+        try:
+            return int(tf.shape(x)[0].numpy())
+        except Exception as exc:
+            raise RuntimeError("UMi channel requires a statically known/eager batch dimension.") from exc
+
+    def _set_topology(self, batch_size: int) -> None:
+        gen_single_sector_topology = resolve_attr(["sionna.phy.channel", "sionna.phy.channel.tr38901"], "gen_single_sector_topology")
+        kwargs = _topology_kwargs_for_umi(self.cfg, batch_size=batch_size, num_users=self.num_users)
+        topology = gen_single_sector_topology(**kwargs)
+        if not isinstance(topology, (tuple, list)) or len(topology) < 6:
+            raise RuntimeError(f"Unexpected UMi topology returned by Sionna: {type(topology)}")
+        self.channel_model.set_topology(*topology)
+        self._last_topology_batch_size = int(batch_size)
+
+    def __call__(self, x: tf.Tensor, no: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
+        x = tf.convert_to_tensor(x)
+        batch_size = self._batch_size_from_x(x)
+        if bool(get_cfg(self.cfg, "channel.umi.randomize_topology_each_batch", True)) or self._last_topology_batch_size != batch_size:
+            self._set_topology(batch_size)
+        attempts = [
+            lambda: self.ofdm_channel(x, no),
+            lambda: self.ofdm_channel([x, no]),
+            lambda: self.ofdm_channel((x, no)),
+            lambda: self.ofdm_channel(x),
+            lambda: self.ofdm_channel([x]),
+            lambda: self.ofdm_channel((x,)),
+        ]
+        last_err = None
+        for attempt in attempts:
+            try:
+                return _infer_channel_pair(attempt())
+            except (tf.errors.ResourceExhaustedError, MemoryError):
+                raise
+            except Exception as err:
+                last_err = err
+        raise RuntimeError("All UMi OFDM channel calling conventions failed.") from last_err
+
+
+def _build_umi_channel(cfg: dict[str, Any], tx: Any, num_users: int) -> TopologyRefreshingOFDMChannel:
+    channel_model = _build_umi_channel_model(cfg, num_users=num_users)
+    ofdm = _build_ofdm_channel(cfg, tx, channel_model, add_awgn=True)
+    return TopologyRefreshingOFDMChannel(channel_model, ofdm, cfg, num_users=num_users)
+
+
 def _build_cdl_channel_model(cfg: dict[str, Any]) -> Any:
     CDL = resolve_attr(["sionna.phy.channel.tr38901", "sionna.channel.tr38901"], "CDL")
 
@@ -301,7 +442,7 @@ def _build_cdl_channel_model(cfg: dict[str, Any]) -> Any:
     bs_array = _build_bs_array(int(channel_cfg["num_rx_ant"]), carrier_frequency)
 
     cdl_kwargs = {
-        "model": str(channel_cfg["model"]),
+        "model": str(channel_cfg.get("cdl_model", channel_cfg.get("model", "C"))),
         "delay_spread": float(channel_cfg["delay_spread_s"]),
         "carrier_frequency": carrier_frequency,
         "ut_array": ut_array,
@@ -315,7 +456,7 @@ def _build_cdl_channel_model(cfg: dict[str, Any]) -> Any:
         channel_model = instantiate_filtered(CDL, **cdl_kwargs)
     except Exception:
         channel_model = CDL(
-            str(channel_cfg["model"]),
+            str(channel_cfg.get("cdl_model", channel_cfg.get("model", "C"))),
             float(channel_cfg["delay_spread_s"]),
             carrier_frequency,
             ut_array=ut_array,
@@ -440,6 +581,11 @@ def _build_independent_multiuser_channel(cfg: dict[str, Any], num_users: int) ->
 
 def build_channel(cfg: dict[str, Any], tx: Any) -> Any:
     num_tx = int(first_present_attr(tx, ["_upair_num_users", "num_tx", "_num_tx"], 1))
+    family = _channel_family(cfg)
+
+    if family in {"umi", "urban_micro", "urban_microcell", "tr38901_umi"}:
+        return _build_umi_channel(cfg, tx, num_users=num_tx)
+
     if multiuser_enabled(cfg) and num_tx > 1:
         return _build_independent_multiuser_channel(cfg, num_tx)
 

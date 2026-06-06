@@ -62,7 +62,7 @@ for pattern, msg in [
 
 stage_a = text("upair_submit_stageA_all.sh")
 for snippet, msg in [
-    ('clean_b32_prb8_d256_40k_smart_u34610_1dmrs_stageA', "Stage-A wrapper uses new smart 40k prefix"),
+    ('clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageA', "Stage-A wrapper uses new smart 40k prefix"),
     ('TRIALS="${UPAIR_OPTUNA_STAGEA_TRIALS:-20}"', "Stage-A wrapper defaults to 20 trials"),
     ('STEPS="${UPAIR_OPTUNA_STAGEA_STEPS:-4000}"', "Stage-A wrapper defaults to 4000 steps"),
     ('TIME_LIMIT="${UPAIR_TIME_STAGE_A:-30:00:00}"', "Stage-A wrapper default walltime is 30h"),
@@ -73,8 +73,8 @@ for snippet, msg in [
 
 stage_b = text("upair_submit_stageB_all.sh")
 for snippet, msg in [
-    ('clean_b32_prb8_d256_40k_smart_u34610_1dmrs_stageA', "Stage-B wrapper reads new Stage-A source prefix"),
-    ('clean_b32_prb8_d256_40k_smart_u34610_1dmrs_stageB', "Stage-B wrapper uses new smart 40k target prefix"),
+    ('clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageA', "Stage-B wrapper reads new Stage-A source prefix"),
+    ('clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageB', "Stage-B wrapper uses new smart 40k target prefix"),
     ('TRIALS="${UPAIR_OPTUNA_STAGEB_TRIALS:-6}"', "Stage-B wrapper defaults to 6 trials"),
     ('STEPS="${UPAIR_OPTUNA_STAGEB_STEPS:-12000}"', "Stage-B wrapper defaults to 12000 steps"),
     ('SOURCE_TOP_K="${UPAIR_OPTUNA_STAGEB_SOURCE_TOP_K:-6}"', "Stage-B wrapper promotes top 6 from Stage A"),
@@ -84,7 +84,7 @@ for snippet, msg in [
 
 train_eval = text("upair_submit_train_eval_all.sh")
 for snippet, msg in [
-    ('clean_b32_prb8_d256_40k_smart_u34610_1dmrs_stageB', "train/eval wrapper requires new Stage-B prefix"),
+    ('clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageB', "train/eval wrapper requires new Stage-B prefix"),
     ('TIME_LIMIT="${UPAIR_TIME_TRAIN_EVAL:-30:00:00}"', "train/eval wrapper default walltime is 30h"),
     ('--require-optuna-best', "train/eval still requires fresh external Optuna best"),
 ]:
@@ -92,8 +92,8 @@ for snippet, msg in [
 
 stageb_probe = text("upair_probe_after_stageB.sh")
 for snippet, msg in [
-    ('clean_b32_prb8_d256_40k_smart_u34610_1dmrs_stageA', "Stage-B probe checks new Stage-A prefix"),
-    ('clean_b32_prb8_d256_40k_smart_u34610_1dmrs_stageB', "Stage-B probe checks new Stage-B prefix"),
+    ('clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageA', "Stage-B probe checks new Stage-A prefix"),
+    ('clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageB', "Stage-B probe checks new Stage-B prefix"),
 ]:
     ok(msg) if snippet in stageb_probe else bad(msg)
 

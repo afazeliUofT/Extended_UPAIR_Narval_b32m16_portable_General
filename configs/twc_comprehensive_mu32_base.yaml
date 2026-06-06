@@ -1,5 +1,5 @@
 experiment:
-  name: rx16_prb8_1dmrs_u3
+  name: rx16_prb8_umi_trueDMRS_1dmrs_u3
   output_root: TWC_plots_comprehensive/runs
 system:
   seed: 7
@@ -72,13 +72,36 @@ pusch:
     type_a_position: 2
     num_cdm_groups_without_data: 2
 channel:
-  model: C
+  model: umi
   delay_spread_s: 3.0e-07
   min_speed_mps: 8.33
   max_speed_mps: 16.67
   num_rx_ant: 16
   num_tx_ant: 1
   normalize_channel: true
+  cdl_model: C
+  family: umi
+  umi:
+    scenario: umi
+    o2i_model: low
+    enable_pathloss: false
+    enable_shadow_fading: false
+    always_generate_lsp: false
+    randomize_topology_each_batch: true
+    antenna_pattern_bs: '38.901'
+    antenna_pattern_ut: omni
+    bs_array_rows: 4
+    bs_array_cols: 4
+    ut_array_rows: 1
+    ut_array_cols: 1
+    min_bs_ut_dist: null
+    isd: null
+    bs_height: null
+    min_ut_height: null
+    max_ut_height: null
+    indoor_probability: null
+    min_ut_velocity_mps: 8.33
+    max_ut_velocity_mps: 16.67
 impairments:
   enabled: false
   train:

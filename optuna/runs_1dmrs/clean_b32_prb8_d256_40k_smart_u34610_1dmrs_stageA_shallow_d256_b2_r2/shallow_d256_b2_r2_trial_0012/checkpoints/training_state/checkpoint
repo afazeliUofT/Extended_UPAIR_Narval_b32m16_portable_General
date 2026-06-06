@@ -1,8 +1,0 @@
-model_checkpoint_path: "ckpt-4000"
-all_model_checkpoint_paths: "ckpt-2000"
-all_model_checkpoint_paths: "ckpt-3000"
-all_model_checkpoint_paths: "ckpt-4000"
-all_model_checkpoint_timestamps: 1780641253.3195379
-all_model_checkpoint_timestamps: 1780641781.32539
-all_model_checkpoint_timestamps: 1780642302.9160821
-last_preserved_timestamp: 1780640186.1937993
