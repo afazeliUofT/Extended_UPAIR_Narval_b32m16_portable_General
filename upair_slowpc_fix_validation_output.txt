@@ -1,0 +1,34 @@
+2026-06-07 12:22:11.560431: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-06-07 12:22:11.560482: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-06-07 12:22:11.561699: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-06-07 12:22:20.539613: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+
+====================================================================================================
+[PROBE] A — beta_hat from N-draw averaging vs single-slot P_u
+====================================================================================================
+[PROBE] beta_hat (dB)              : [ -89.63 -112.98 -111.01  -87.22]
+[PROBE] N=32 estimate stability std (dB): [0.638 0.557 1.413 0.305]  (want << single-slot)
+[PROBE] single-slot P_u error vs beta_hat std (dB): [3.876 2.117 3.571 2.882]  (the 3-6 dB contamination)
+[PROBE][A] CHECK: N-averaging may not fully remove fast fading (stability 1.41 dB vs single-slot 3.88 dB)
+
+====================================================================================================
+[PROBE] B — delivered fast-fading fluctuation: SLOW-PC fix vs CURRENT per-slot
+====================================================================================================
+[PROBE] RAW fast-fading std (dB)        : [3.59  3.571 6.436 2.397]
+[PROBE] SLOW-PC delivered std (dB)      : [3.59  3.571 6.436 2.397]  (want ~= RAW)
+[PROBE] CURRENT per-slot delivered (dB) : [0.57  0.76  1.27  0.425]  (~ (1-alpha)*RAW = 0.2x)
+[PROBE][B] PASS: SLOW-PC preserves physical fast-fading dynamics; CURRENT suppresses them to ~0.19x.
+
+====================================================================================================
+[PROBE] C — calibration: mean over users of slot-mean delivered power
+====================================================================================================
+[PROBE] SLOW-PC: mean_u per slot -> overall mean = 1.0028 (want ~1; fluctuates per slot by design, std=0.375)
+[PROBE] CURRENT: mean_u per slot -> overall mean = 1.0000 (=1 exactly per slot, std=8.171e-17)
+[PROBE][C] PASS: SLOW-PC calibrates in expectation (Eb/N0 sets AVERAGE SNR; per-slot SNR fluctuates physically).
+
+====================================================================================================
+[PROBE] D — cost & summary
+====================================================================================================
+[PROBE] cost: 32 extra channel draws per topology to estimate beta_hat (efficient via batch-replicated topology in ONE vectorized call).
+[PROBE] OVERALL: A=CHECK  B=PASS  C=PASS
+[PROBE] If all PASS, the slow-gain-via-multi-draw fix is validated and ready to implement.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Tiny end-to-end smoke test under UMi + fractional power-control near-far.
+# Tiny end-to-end smoke test under standard normalized UMi.
 set -euo pipefail
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT}"
-
 source "${ROOT}/upair_portable_env.sh"
 upair_activate
 
@@ -13,11 +13,11 @@ export TF_FORCE_GPU_ALLOW_GROWTH="${TF_FORCE_GPU_ALLOW_GROWTH:-true}"
 export MPLBACKEND="${MPLBACKEND:-Agg}"
 
 VARIANT="${UPAIR_SMOKE_VARIANT:-main_d256_b4_r2}"
-SMOKE_ROOT="${UPAIR_SMOKE_ROOT:-${ROOT}/_smoke_umi_pc_runtime}"
-SMOKE_TAG="${UPAIR_SMOKE_TAG:-smoke_umi_pc_$(date +%Y%m%d_%H%M%S)}"
+SMOKE_ROOT="${UPAIR_SMOKE_ROOT:-${ROOT}/_smoke_umi_norm_runtime}"
+SMOKE_TAG="${UPAIR_SMOKE_TAG:-smoke_umi_norm_$(date +%Y%m%d_%H%M%S)}"
 A_PREFIX="${SMOKE_TAG}_stageA"
 B_PREFIX="${SMOKE_TAG}_stageB"
-CONFIG="${SMOKE_ROOT}/smoke_umi_pc_config.yaml"
+CONFIG="${SMOKE_ROOT}/smoke_umi_norm_config.yaml"
 
 rm -rf "${SMOKE_ROOT}"
 mkdir -p "${SMOKE_ROOT}/optuna"
@@ -33,6 +33,7 @@ def setp(path, value):
     for p in parts[:-1]:
         node = node.setdefault(p, {})
     node[parts[-1]] = value
+
 updates = {
     "system.batch_size_train": 2,
     "system.batch_size_eval": 2,
@@ -59,7 +60,7 @@ updates = {
     "baselines.covariance_estimation.reuse_cache": False,
     "baselines.covariance_estimation.num_batches": 1,
     "baselines.covariance_estimation.batch_size": 2,
-    "baselines.covariance_estimation.cache_name": "smoke_umi_pc_cov.npz",
+    "baselines.covariance_estimation.cache_name": "smoke_umi_norm_cov.npz",
 }
 for path, value in updates.items():
     setp(path, value)
@@ -101,4 +102,4 @@ rm -rf "TWC_plots_comprehensive/runs_rx16/seed7/1dmrs/${VARIANT}" \
        "TWC_plots_comprehensive/eval_runs_rx16/seed7/1dmrs/${VARIANT}_u4"
 rm -f "TWC_plots_comprehensive/csv_rx16/seed7/1dmrs/${VARIANT}_u4_curves.csv"
 
-echo "[SMOKE] PASSED UMiPC full-pipeline smoke test."
+echo "[SMOKE] PASSED normalized UMi full-pipeline smoke test."

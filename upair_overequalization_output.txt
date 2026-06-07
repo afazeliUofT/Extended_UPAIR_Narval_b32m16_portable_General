@@ -1,0 +1,28 @@
+2026-06-07 12:07:15.881407: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-06-07 12:07:15.881457: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-06-07 12:07:15.882693: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+
+====================================================================================================
+[PROBE] CHECK 1 — eps fix at runtime + aggregate calibration
+====================================================================================================
+[PROBE] near_far.epsilon = 1.0e-20  (expect 1e-20 after fix)
+2026-06-07 12:07:21.739370: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+  alpha=1.00 | realized/target min/mean = 1.0000/1.0000 | mean_u P* (want 1) = 1.00000 | pre-clamp dips<eps = 0
+  alpha=0.80 | realized/target min/mean = 1.0000/1.0000 | mean_u P* (want 1) = 1.00000 | pre-clamp dips<eps = 0
+  alpha=0.00 | realized/target min/mean = 1.0000/1.0000 | mean_u P* (want 1) = 1.00000 | pre-clamp dips<eps = 0
+
+[PROBE][INTERPRETATION] PASS if, for every alpha: realized/target min ~>=0.99, mean ~1.000, mean_u P* ~1.000, and dips==0. That confirms the eps clamp no longer corrupts weak users and aggregate SNR calibration holds.
+
+====================================================================================================
+[PROBE] CHECK 2 — over-equalization of fast fading in delivered h_star (Issue 2b)
+====================================================================================================
+[PROBE] frozen geometry, 24 fast-fading draws, alpha=0.8
+[PROBE] RAW per-user power std (dB)       : [5.487 2.437 5.279 5.741]
+[PROBE] DELIVERED h_star power std (dB)   : [1.145 0.574 0.739 1.045]
+[PROBE] max RAW std=5.741 dB   max DELIVERED std=1.145 dB
+[PROBE][VERDICT] Delivered channel retains fast-fading power variation; Issue 2b is NOT present in the delivered channel.
+[PROBE][NOTE] Issue 2a (P_u != beta_u, the ~1-2.6 dB contamination of the PC TARGET) is measured by upair_probe_umi_pc_fast_fading_contamination.sh; this CHECK 2 is about whether the DELIVERED channel is over-flattened.
+
+====================================================================================================
+[PROBE] PROBE COMPLETE — send back ALL stdout
+====================================================================================================

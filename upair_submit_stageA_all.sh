@@ -15,7 +15,7 @@ fi
 CONFIG="${UPAIR_CONFIG:-${UPAIR_REPO_ROOT}/configs/twc_comprehensive_mu32_base.yaml}"
 [[ -f "${CONFIG}" ]] || { echo "[STAGE-A] Missing config: ${CONFIG}" >&2; exit 1; }
 
-PREFIX="${UPAIR_OPTUNA_STAGEA_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMiPC_u34610_1dmrs_stageA}"
+PREFIX="${UPAIR_OPTUNA_STAGEA_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMiNorm_u34610_1dmrs_stageA}"
 TRIALS="${UPAIR_OPTUNA_STAGEA_TRIALS:-24}"
 STEPS="${UPAIR_OPTUNA_STAGEA_STEPS:-4000}"
 MAX_ATTEMPTS="${UPAIR_OPTUNA_STAGEA_MAX_ATTEMPTS:-36}"
