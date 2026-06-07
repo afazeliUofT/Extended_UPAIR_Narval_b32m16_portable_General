@@ -374,7 +374,10 @@ def _topology_kwargs_for_umi(cfg: dict[str, Any], *, batch_size: int, num_users:
     return kwargs
 
 
+
 class TopologyRefreshingOFDMChannel:
+    # OFDM channel wrapper that regenerates UMi topology and optionally applies
+    # geometry-consistent near-far modeling with fractional uplink power control.
     def __init__(self, channel_model: Any, ofdm_channel: Any, cfg: dict[str, Any], num_users: int) -> None:
         self.channel_model = channel_model
         self.ofdm_channel = ofdm_channel
@@ -382,6 +385,11 @@ class TopologyRefreshingOFDMChannel:
         self.num_users = int(num_users)
         self.return_channel = True
         self._last_topology_batch_size: int | None = None
+        self._training_mode = False
+        self.last_near_far_stats: dict[str, tf.Tensor] = {}
+
+    def set_training_mode(self, training: bool) -> None:
+        self._training_mode = bool(training)
 
     def _batch_size_from_x(self, x: tf.Tensor) -> int:
         static = x.shape[0]
@@ -393,7 +401,10 @@ class TopologyRefreshingOFDMChannel:
             raise RuntimeError("UMi channel requires a statically known/eager batch dimension.") from exc
 
     def _set_topology(self, batch_size: int) -> None:
-        gen_single_sector_topology = resolve_attr(["sionna.phy.channel", "sionna.phy.channel.tr38901"], "gen_single_sector_topology")
+        gen_single_sector_topology = resolve_attr(
+            ["sionna.phy.channel", "sionna.phy.channel.tr38901"],
+            "gen_single_sector_topology",
+        )
         kwargs = _topology_kwargs_for_umi(self.cfg, batch_size=batch_size, num_users=self.num_users)
         topology = gen_single_sector_topology(**kwargs)
         if not isinstance(topology, (tuple, list)) or len(topology) < 6:
@@ -401,15 +412,8 @@ class TopologyRefreshingOFDMChannel:
         self.channel_model.set_topology(*topology)
         self._last_topology_batch_size = int(batch_size)
 
-    def __call__(self, x: tf.Tensor, no: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
-        x = tf.convert_to_tensor(x)
-        batch_size = self._batch_size_from_x(x)
-        if bool(get_cfg(self.cfg, "channel.umi.randomize_topology_each_batch", True)) or self._last_topology_batch_size != batch_size:
-            self._set_topology(batch_size)
+    def _call_clean_ofdm(self, x: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
         attempts = [
-            lambda: self.ofdm_channel(x, no),
-            lambda: self.ofdm_channel([x, no]),
-            lambda: self.ofdm_channel((x, no)),
             lambda: self.ofdm_channel(x),
             lambda: self.ofdm_channel([x]),
             lambda: self.ofdm_channel((x,)),
@@ -422,12 +426,100 @@ class TopologyRefreshingOFDMChannel:
                 raise
             except Exception as err:
                 last_err = err
-        raise RuntimeError("All UMi OFDM channel calling conventions failed.") from last_err
+        raise RuntimeError("All clean UMi OFDM channel calling conventions failed.") from last_err
+
+    def _sample_alpha(self, batch_size: int) -> tf.Tensor:
+        nf_cfg = get_cfg(self.cfg, "near_far", {})
+        if self._training_mode:
+            amin = float(nf_cfg.get("alpha_train_min", 0.70))
+            amax = float(nf_cfg.get("alpha_train_max", 1.00))
+            amin = max(0.0, min(1.0, amin))
+            amax = max(amin, min(1.0, amax))
+            if abs(amax - amin) < 1e-12:
+                alpha = tf.fill([int(batch_size), 1], tf.constant(amin, tf.float32))
+            else:
+                alpha = tf.random.uniform([int(batch_size), 1], minval=amin, maxval=amax, dtype=tf.float32)
+        else:
+            alpha_eval = float(nf_cfg.get("alpha_eval", 0.80))
+            alpha_eval = max(0.0, min(1.0, alpha_eval))
+            alpha = tf.fill([int(batch_size), 1], tf.constant(alpha_eval, tf.float32))
+        return alpha
+
+    def _apply_fractional_power_control(
+        self,
+        h_raw: tf.Tensor,
+        x: tf.Tensor,
+        no: tf.Tensor,
+    ) -> tuple[tf.Tensor, tf.Tensor]:
+        nf_cfg = get_cfg(self.cfg, "near_far", {})
+        eps = tf.constant(float(nf_cfg.get("epsilon", 1e-12)), tf.float32)
+
+        h_raw = tf.convert_to_tensor(h_raw)
+        h_dtype = h_raw.dtype
+        x = tf.cast(tf.convert_to_tensor(x), h_dtype)
+
+        # h_raw shape: [B, 1, Nr, U, S, T, F]
+        # x shape:     [B, U, S, T, F]
+        if h_raw.shape.rank != 7:
+            raise ValueError(f"Expected h rank 7 [B,1,Nr,U,S,T,F], got rank {h_raw.shape.rank}.")
+        if x.shape.rank != 5:
+            raise ValueError(f"Expected x rank 5 [B,U,S,T,F], got rank {x.shape.rank}.")
+
+        batch_size = self._batch_size_from_x(x)
+        abs2 = tf.math.real(h_raw * tf.math.conj(h_raw))
+        p_u = tf.reduce_mean(abs2, axis=[1, 2, 4, 5, 6])  # [B,U]
+        p_safe = tf.maximum(tf.cast(p_u, tf.float32), eps)
+
+        alpha = self._sample_alpha(batch_size)             # [B,1]
+        rho = 1.0 - alpha                                  # residual near-far exponent
+
+        # Headroom-unlimited fractional compensation:
+        # P*_u ∝ P_u^(1-alpha), then normalize mean_u P*_u = 1.
+        log_p = tf.math.log(p_safe)
+        log_eff = rho * log_p
+        num_u = tf.cast(tf.shape(log_eff)[1], tf.float32)
+        log_mean_eff = tf.reduce_logsumexp(log_eff, axis=1, keepdims=True) - tf.math.log(num_u)
+        log_p_star = log_eff - log_mean_eff
+        p_star = tf.exp(log_p_star)                        # [B,U], mean over U = 1
+
+        scale = tf.sqrt(p_star / p_safe)                   # [B,U]
+        scale_bc = tf.reshape(tf.cast(scale, h_dtype), [tf.shape(h_raw)[0], 1, 1, tf.shape(h_raw)[3], 1, 1, 1])
+        h_star = h_raw * scale_bc
+
+        x_bc = tf.expand_dims(tf.expand_dims(x, axis=1), axis=2)  # [B,1,1,U,S,T,F]
+        y_clean = tf.reduce_sum(h_star * x_bc, axis=[3, 4])       # [B,1,Nr,T,F]
+        y = _add_awgn_once(y_clean, no)
+
+        raw_spread_db = (tf.reduce_max(log_p, axis=1) - tf.reduce_min(log_p, axis=1)) * (10.0 / tf.math.log(10.0))
+        post_spread_db = (tf.reduce_max(log_p_star, axis=1) - tf.reduce_min(log_p_star, axis=1)) * (10.0 / tf.math.log(10.0))
+        self.last_near_far_stats = {
+            "alpha": tf.identity(alpha),
+            "raw_power": tf.identity(p_safe),
+            "post_power": tf.identity(p_star),
+            "raw_spread_db": tf.identity(raw_spread_db),
+            "post_spread_db": tf.identity(post_spread_db),
+            "post_power_mean": tf.reduce_mean(p_star, axis=1),
+        }
+        return y, h_star
+
+    def __call__(self, x: tf.Tensor, no: tf.Tensor) -> tuple[tf.Tensor, tf.Tensor]:
+        x = tf.convert_to_tensor(x)
+        batch_size = self._batch_size_from_x(x)
+        if bool(get_cfg(self.cfg, "channel.umi.randomize_topology_each_batch", True)) or self._last_topology_batch_size != batch_size:
+            self._set_topology(batch_size)
+
+        y_clean_raw, h_raw = self._call_clean_ofdm(x)
+        if bool(get_cfg(self.cfg, "near_far.enabled", False)):
+            return self._apply_fractional_power_control(h_raw, x, no)
+
+        return _add_awgn_once(y_clean_raw, no), h_raw
 
 
 def _build_umi_channel(cfg: dict[str, Any], tx: Any, num_users: int) -> TopologyRefreshingOFDMChannel:
     channel_model = _build_umi_channel_model(cfg, num_users=num_users)
-    ofdm = _build_ofdm_channel(cfg, tx, channel_model, add_awgn=True)
+    # AWGN is added by TopologyRefreshingOFDMChannel after optional near-far
+    # re-referencing so that y, h, and N0 remain mutually consistent.
+    ofdm = _build_ofdm_channel(cfg, tx, channel_model, add_awgn=False)
     return TopologyRefreshingOFDMChannel(channel_model, ofdm, cfg, num_users=num_users)
 
 

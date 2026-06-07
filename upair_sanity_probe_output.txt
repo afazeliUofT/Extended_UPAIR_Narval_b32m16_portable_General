@@ -1,0 +1,93 @@
+2026-06-06 18:27:26.005827: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-06-06 18:27:26.005878: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-06-06 18:27:26.007419: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+
+====================================================================================================
+[PROBE] CHECK 0 — environment & config snapshot
+====================================================================================================
+[PROBE] python      : 3.11.5
+[PROBE] tensorflow  : 2.15.1
+[PROBE] sionna      : 1.2.1
+2026-06-06 18:27:38.219288: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+[PROBE] GPUs         : []
+[PROBE] channel.family       : umi
+[PROBE] channel.model        : umi
+[PROBE] channel.num_rx_ant   : 16
+[PROBE] channel.num_tx_ant   : 1
+[PROBE] channel.normalize    : True
+[PROBE] umi block            : {'scenario': 'umi', 'o2i_model': 'low', 'enable_pathloss': False, 'enable_shadow_fading': False, 'always_generate_lsp': False, 'randomize_topology_each_batch': True, 'antenna_pattern_bs': '38.901', 'antenna_pattern_ut': 'omni', 'bs_array_rows': 4, 'bs_array_cols': 4, 'ut_array_rows': 1, 'ut_array_cols': 1, 'min_bs_ut_dist': None, 'isd': None, 'bs_height': None, 'min_ut_height': None, 'max_ut_height': None, 'indoor_probability': None, 'min_ut_velocity_mps': 8.33, 'max_ut_velocity_mps': 16.67}
+[PROBE] multiuser.max_num_users   : 4
+[PROBE] multiuser.fixed_num_users : 3
+
+====================================================================================================
+[PROBE] CHECK 1 — PanelArray element count vs configured num_rx_ant / num_tx_ant
+====================================================================================================
+[PROBE] configured num_rx_ant      = 16
+[PROBE] bs_array_rows x cols        = 4 x 4 = 16 (x pol=1)
+[PROBE] BS PanelArray element count = None
+[PROBE] configured num_tx_ant      = 1
+[PROBE] UT PanelArray element count = None
+[PROBE] BS antenna count consistent.
+[PROBE] UT antenna count consistent.
+
+====================================================================================================
+[PROBE] CHECK 2 — UMi channel-tensor layout, and parity vs CDL path
+====================================================================================================
+
+--- U=1 ---
+[PROBE] UMi  y.shape=(2, 1, 16, 14, 96)
+[PROBE] UMi  h.shape=(2, 1, 16, 1, 1, 14, 96)  (user-axis guess=1)
+[PROBE] CDL  y.shape=(2, 1, 16, 14, 96)
+[PROBE] CDL  h.shape=(2, 1, 16, 1, 1, 14, 96)  (user-axis guess=1)
+[PROBE] LAYOUT PARITY OK: UMi and CDL h tensors have identical shape.
+
+--- U=2 ---
+[PROBE] UMi  y.shape=(2, 1, 16, 14, 96)
+[PROBE] UMi  h.shape=(2, 1, 16, 2, 1, 14, 96)  (user-axis guess=0)
+[PROBE] CDL  y.shape=(2, 1, 16, 14, 96)
+[PROBE] CDL  h.shape=(2, 1, 16, 2, 1, 14, 96)  (user-axis guess=0)
+[PROBE] LAYOUT PARITY OK: UMi and CDL h tensors have identical shape.
+
+--- U=4 ---
+[PROBE] UMi  y.shape=(2, 1, 16, 14, 96)
+[PROBE] UMi  h.shape=(2, 1, 16, 4, 1, 14, 96)  (user-axis guess=3)
+[PROBE] CDL  y.shape=(2, 1, 16, 14, 96)
+[PROBE] CDL  h.shape=(2, 1, 16, 4, 1, 14, 96)  (user-axis guess=3)
+[PROBE] LAYOUT PARITY OK: UMi and CDL h tensors have identical shape.
+
+====================================================================================================
+[PROBE] CHECK 3 — per-user receive-power spread (near-far realism)
+====================================================================================================
+[PROBE] per-user mean|h|^2 (linear): [1. 1. 1. 1.]
+[PROBE] per-user power (dB)        : [-4.66e-06  4.14e-06  1.55e-05  1.09e-05]
+[PROBE] near-far spread (max-min, dB) = 0.00
+[PROBE][INTERPRETATION] spread < 1 dB  -> users are ~equal power (NO near-far). Consistent with pathloss disabled and/or normalize_channel=true.
+
+====================================================================================================
+[PROBE] CHECK 4 — pathloss / shadow / normalize_channel interaction
+====================================================================================================
+
+--- pathloss=OFF norm=TRUE  (current) ---
+[PROBE] total mean|h|^2 = 1.0000e+00
+[PROBE] per-user power (dB) = [-2.25e-05 -2.04e-05 -4.40e-06  7.25e-06]  spread=0.00 dB
+
+--- pathloss=ON  norm=TRUE  (does norm cancel PL?) ---
+[PROBE] total mean|h|^2 = 1.0000e+00
+[PROBE] per-user power (dB) = [ 2.23e-05 -1.04e-05  2.07e-05  8.80e-06]  spread=0.00 dB
+
+--- pathloss=ON  norm=FALSE (PL should show) ---
+[PROBE] total mean|h|^2 = 3.8901e-10
+[PROBE] per-user power (dB) = [-105.43  -94.6  -112.72  -89.3 ]  spread=23.42 dB
+
+[PROBE][INTERPRETATION] Compare the three: if row2 spread ~= row1 spread (~0) but row3 shows a large spread, then normalize_channel=true is CANCELLING pathloss -> you must set normalize_channel=false to keep near-far.
+
+====================================================================================================
+[PROBE] CHECK 5 — topology randomization actually changes the channel
+====================================================================================================
+[PROBE] randomize=ON : mean|h|^2 batch1 vs batch2 differ by 1.192e-07
+[PROBE] randomize=ON : sorted-magnitude relative diff = 0.098  (expect >> 0 if topology truly re-drawn)
+[PROBE] topology randomization produces distinct channels (good).
+
+====================================================================================================
+[PROBE] PROBE COMPLETE — copy ALL stdout above back for review
+====================================================================================================

@@ -49,6 +49,9 @@ def _make_batch(
         ebno_db = tf.constant(float(fixed_ebno_db), tf.float32)
 
     no = ebno_db_to_no(ebno_db, tx=tx, resource_grid=get_resource_grid(tx))
+    set_training_mode = getattr(channel, "set_training_mode", None)
+    if callable(set_training_mode):
+        set_training_mode(bool(training))
     y, h = call_channel(channel, x, no)
     y, h = apply_symbol_phase_impairment(y, h, cfg, training=training)
 

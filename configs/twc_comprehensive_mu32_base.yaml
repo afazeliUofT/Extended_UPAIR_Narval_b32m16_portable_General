@@ -1,5 +1,5 @@
 experiment:
-  name: rx16_prb8_umi_trueDMRS_1dmrs_u3
+  name: rx16_prb8_umi_pc_trueDMRS_1dmrs_u3
   output_root: TWC_plots_comprehensive/runs
 system:
   seed: 7
@@ -78,14 +78,14 @@ channel:
   max_speed_mps: 16.67
   num_rx_ant: 16
   num_tx_ant: 1
-  normalize_channel: true
+  normalize_channel: false
   cdl_model: C
   family: umi
   umi:
     scenario: umi
     o2i_model: low
-    enable_pathloss: false
-    enable_shadow_fading: false
+    enable_pathloss: true
+    enable_shadow_fading: true
     always_generate_lsp: false
     randomize_topology_each_batch: true
     antenna_pattern_bs: '38.901'
@@ -248,7 +248,7 @@ baselines:
   - upair5g_lmmse
   - perfect_csi_lmmse
   covariance_estimation:
-    cache_name: empirical_covariances.npz
+    cache_name: empirical_covariances_umi_pc_meanref.npz
     reuse_cache: true
     num_batches: 32
     batch_size: 32
@@ -268,3 +268,13 @@ baselines:
     weight_power: 1.0
     max_abs_residual_rad: 0.4
     anchor_to_dmrs: true
+near_far:
+  enabled: true
+  mode: fractional_power_control_meanref
+  alpha_train_min: 0.7
+  alpha_train_max: 1.0
+  alpha_eval: 0.8
+  alpha_sampling: uniform
+  epsilon: 1.0e-12
+  log_stats: true
+  headroom_db: null

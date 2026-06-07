@@ -114,7 +114,7 @@ grep -q -- '--require-optuna-best' upair_submit_train_eval_all.sh \
   && check_ok "train/eval wrapper requires external Optuna best parameters" \
   || check_fail "train/eval wrapper does not force --require-optuna-best"
 
-expected_stageb_prefix="${UPAIR_OPTUNA_STAGEB_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageB}"
+expected_stageb_prefix="${UPAIR_OPTUNA_STAGEB_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMiPC_u34610_1dmrs_stageB}"
 if grep -q "${expected_stageb_prefix}" upair_submit_train_eval_all.sh; then
   check_ok "train/eval wrapper is wired to expected Stage-B prefix: ${expected_stageb_prefix}"
 else

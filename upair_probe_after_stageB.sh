@@ -7,8 +7,8 @@ source "${ROOT}/upair_submit_lib.sh"
 cd "${UPAIR_REPO_ROOT}"
 
 upair_ensure_venv
-B_PREFIX="${UPAIR_OPTUNA_STAGEB_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageB}"
-A_PREFIX="${UPAIR_OPTUNA_STAGEA_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMi_u34610_1dmrs_stageA}"
+B_PREFIX="${UPAIR_OPTUNA_STAGEB_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMiPC_u34610_1dmrs_stageB}"
+A_PREFIX="${UPAIR_OPTUNA_STAGEA_PREFIX:-clean_b32_prb8_d256_40k_smart_trueDMRS_UMiPC_u34610_1dmrs_stageA}"
 fail=0
 
 echo "[PROBE] Checking Stage-B artifacts under ${UPAIR_REPO_ROOT}/optuna"
