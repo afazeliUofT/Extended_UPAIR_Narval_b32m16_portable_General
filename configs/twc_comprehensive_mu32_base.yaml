@@ -276,6 +276,6 @@ near_far:
   alpha_train_max: 1.0
   alpha_eval: 0.8
   alpha_sampling: uniform
-  epsilon: 1.0e-12
+  epsilon: 1.0e-20
   log_stats: true
   headroom_db: null
