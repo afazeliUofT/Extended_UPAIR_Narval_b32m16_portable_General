@@ -31,6 +31,15 @@ VARIANTS: dict[str, dict[str, Any]] = {
             "model.mlp_ratio": 2.0,
         },
     },
+    "promptmlp_d256_b4_r2_pr2": {
+        "label": "d=256, L=4, r=2, prompt-r=2",
+        "overrides": {
+            "model.d_model": 256,
+            "model.num_blocks": 4,
+            "model.mlp_ratio": 2.0,
+            "model.prompt_mlp_ratio": 2.0,
+        },
+    },
     "shallow_d256_b2_r2": {
         "label": "d=256, L=2, r=2",
         "overrides": {

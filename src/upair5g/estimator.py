@@ -120,6 +120,8 @@ class UPAIRChannelEstimator(tf.keras.Model):
         self.max_num_users = int(cfg.get("multiuser", {}).get("max_num_users", 1))
         self.d_model = int(cfg["model"]["d_model"])
         model_cfg = cfg.get("model", {})
+        self.prompt_mlp_ratio = float(model_cfg.get("prompt_mlp_ratio", 1.0))
+        self.prompt_mlp_hidden_dim = max(1, int(round(self.d_model * self.prompt_mlp_ratio)))
         self.use_noise_feature = bool(model_cfg.get("use_noise_feature", True))
         self.use_pilot_mask_feature = bool(model_cfg.get("use_pilot_mask_feature", True))
         self.pilot_mask_mode = str(model_cfg.get("pilot_mask_mode", "per_stream")).lower()
@@ -141,7 +143,7 @@ class UPAIRChannelEstimator(tf.keras.Model):
         self.stem = tf.keras.layers.Conv2D(self.d_model, kernel_size=1, padding="same")
         self.prompt_mlp = tf.keras.Sequential(
             [
-                tf.keras.layers.Dense(self.d_model, activation="gelu"),
+                tf.keras.layers.Dense(self.prompt_mlp_hidden_dim, activation="gelu"),
                 tf.keras.layers.Dense(self.d_model),
             ]
         )

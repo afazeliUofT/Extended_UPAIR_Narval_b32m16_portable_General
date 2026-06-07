@@ -1,0 +1,31 @@
+2026-06-07 08:46:25.829761: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-06-07 08:46:25.829815: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-06-07 08:46:25.831268: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+
+====================================================================================================
+[PROBE] CHECK D2 — fast-fading contamination of P_u  (FIXED geometry)
+====================================================================================================
+2026-06-07 08:46:37.369935: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+[PROBE] fixed-geometry per-user mean raw power: [1.127e-12 1.338e-12 1.553e-12 5.836e-12]
+[PROBE] per-user CV across fast-fading draws  : [0.244  0.4353 0.6593 0.8252]
+[PROBE] approx fluctuation (dB)               : [0.948 1.569 2.199 2.613]
+[PROBE] max CV                                : 0.8252
+[PROBE][VERDICT] Issue 1 fast-fading contamination: LARGE (fast fading dominates P_u)
+[PROBE][NOTE] If user-to-user mean ratios here are NOT stable, the geometry did not actually freeze (report this).
+
+====================================================================================================
+[PROBE] CHECK E — eps-floor / realized-power deficit diagnostic
+====================================================================================================
+[PROBE] internal mean_u p_star (per batch, want 1): [1. 1. 1. 1. 1. 1.] ...
+[PROBE] realized  mean_u |h*|^2 (per batch)       : [1.      0.90926 0.85376 0.7945  0.88371 0.98625] ...
+[PROBE] overall mean realized/intended ratio      : 0.73310
+[PROBE] min/median/max ratio                      : 0.0020 / 1.0000 / 1.0000
+[PROBE] raw P_u below 10*eps (=1e-11) : 41 of 64 user-instances
+[PROBE] raw P_u below eps   (=1e-12)  : 0 of 64 user-instances
+[PROBE] mean ratio for LOW-raw-power half : 0.4662
+[PROBE] mean ratio for HIGH-raw-power half: 1.0000
+[PROBE][INTERPRETATION] If overall ratio < 1 AND it is the LOW-raw-power half that is depressed (and some instances sit near eps), the deficit is the eps=1e-12 clamp biasing deeply-faded users; fix by lowering eps (e.g. 1e-20). If ratio ~1 everywhere, the earlier 0.926 was a measurement artifact and there is no bug.
+
+====================================================================================================
+[PROBE] FOLLOW-UP PROBE COMPLETE — send back ALL stdout
+====================================================================================================

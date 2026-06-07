@@ -166,6 +166,7 @@ model:
   pilot_mask_mode: per_stream
   error_feature_mode: per_user
   error_variance_update: multiplicative
+  prompt_mlp_ratio: 1.0
 training:
   steps: 40000
   resume: true

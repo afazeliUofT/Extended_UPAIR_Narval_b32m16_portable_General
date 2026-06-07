@@ -1,0 +1,49 @@
+2026-06-07 08:32:22.612821: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-06-07 08:32:22.612868: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-06-07 08:32:22.614327: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+
+====================================================================================================
+[PROBE] CHECK 0 — environment & near_far config
+====================================================================================================
+[PROBE] tf: 2.15.1
+[PROBE] sionna: 1.2.1
+[PROBE] near_far block: {'enabled': True, 'mode': 'fractional_power_control_meanref', 'alpha_train_min': 0.7, 'alpha_train_max': 1.0, 'alpha_eval': 0.8, 'alpha_sampling': 'uniform', 'epsilon': 1e-12, 'log_stats': True, 'headroom_db': None}
+[PROBE] channel.normalize_channel: False
+[PROBE] umi.enable_pathloss: True
+[PROBE] umi.enable_shadow_fading: True
+
+====================================================================================================
+[PROBE] CHECK A & B — calibration invariance + (1-alpha) spread law
+====================================================================================================
+ alpha |   mean P*_u (want 1.0) | raw_spread_dB | post_spread_dB |  (1-a)*raw |  ratio post/(1-a)raw
+----------------------------------------------------------------------------------------------------
+2026-06-07 08:32:33.413409: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+  0.00 |               1.000000 |         22.59 |          22.59 |      22.59 |                1.000
+  0.50 |               1.000000 |         27.81 |          13.91 |      13.91 |                1.000
+  0.80 |               1.000000 |         24.03 |           4.81 |       4.81 |                1.000
+  1.00 |               1.000000 |         18.96 |           0.00 |       0.00 |                  nan
+
+[PROBE][INTERPRETATION] CHECK A: 'mean P*_u' must be ~1.000 for every alpha (else Eb/N0 calibration is broken).
+[PROBE][INTERPRETATION] CHECK B: 'ratio post/(1-a)raw' should be ~1.0 for alpha<1; alpha=1 row should show post_spread ~0 dB (equal power); alpha=0 row should show post ~= raw (full near-far).
+
+====================================================================================================
+[PROBE] CHECK C — internal consistency  y == sum_u(h_star * x) + n  (noise-subtracted)
+====================================================================================================
+[PROBE] mean|y|^2 (Eb/N0=60dB, ~noiseless) = 3.73525e+00
+[PROBE] sum_u mean|h_star_u|^2             = 3.70484e+00
+[PROBE] per-user mean|h_star|^2            = [0.7958 0.6677 0.6004 1.641 ]
+[PROBE] ratio mean|y|^2 / sum_u mean|h|^2  = 1.0082
+[PROBE][INTERPRETATION] If y is built consistently from h_star with unit-power symbols, this ratio should be ~1.0 (within DMRS/data RE occupancy and pilot-power factors). A ratio far from O(1) signals y and h_star are NOT the same channel.
+
+====================================================================================================
+[PROBE] CHECK D — fast-fading contamination of P_u (Issue 1)
+====================================================================================================
+[PROBE] per-user mean power across draws : [3.031e-09 1.860e-08 1.450e-09 4.292e-11]
+[PROBE] per-user coeff. of variation     : [1.7359 1.8614 1.8807 0.6429]
+[PROBE] approx fluctuation (dB)          : [4.371 4.566 4.595 2.156]
+[PROBE] max CV across users              : 1.8807
+[PROBE][INTERPRETATION] CV << 1 (say < 0.05, i.e. < ~0.2 dB) means the grid average P_u is a clean estimate of beta_u and the LaTeX approximation P_u ~= beta_u holds; the re-referencing is then effectively large-scale-only. CV of O(0.1-0.3) means a non-trivial slice of fast fading is being divided out (Issue 1 is real and sized here).
+
+====================================================================================================
+[PROBE] PROBE COMPLETE — send back ALL stdout above
+====================================================================================================

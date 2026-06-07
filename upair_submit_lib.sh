@@ -8,6 +8,7 @@ source "${UPAIR_LIB_ROOT}/upair_portable_env.sh"
 
 UPAIR_VARIANTS_DEFAULT=(
   main_d256_b4_r2
+  promptmlp_d256_b4_r2_pr2
   shallow_d256_b2_r2
   deep_d256_b6_r2
   narrow_d192_b4_r2

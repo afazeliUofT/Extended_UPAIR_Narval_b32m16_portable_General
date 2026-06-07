@@ -18,6 +18,7 @@ from upair5g.config import load_config, set_cfg  # noqa: E402
 
 VARIANTS: dict[str, dict[str, Any]] = {
     "main_d256_b4_r2": {"model.d_model": 256, "model.num_blocks": 4, "model.mlp_ratio": 2.0},
+    "promptmlp_d256_b4_r2_pr2": {"model.d_model": 256, "model.num_blocks": 4, "model.mlp_ratio": 2.0, "model.prompt_mlp_ratio": 2.0},
     "shallow_d256_b2_r2": {"model.d_model": 256, "model.num_blocks": 2, "model.mlp_ratio": 2.0},
     "deep_d256_b6_r2": {"model.d_model": 256, "model.num_blocks": 6, "model.mlp_ratio": 2.0},
     "narrow_d192_b4_r2": {"model.d_model": 192, "model.num_blocks": 4, "model.mlp_ratio": 2.0},
@@ -50,8 +51,8 @@ ESSENTIAL_PARAM_NAMES = {
 STAGE_DEFAULTS: dict[str, dict[str, int]] = {
     # Smart bounded schedule for the PRB8/d256 package:
     # Stage A explores broadly but cheaply; Stage B re-runs the best candidates longer.
-    "A": {"steps": 4000, "target_total_trials": 20, "source_top_k": 0},
-    "B": {"steps": 12000, "target_total_trials": 6, "source_top_k": 6},
+    "A": {"steps": 4000, "target_total_trials": 24, "source_top_k": 0},
+    "B": {"steps": 12000, "target_total_trials": 10, "source_top_k": 8},
     "C": {"steps": 40000, "target_total_trials": 3, "source_top_k": 3},
 }
 
