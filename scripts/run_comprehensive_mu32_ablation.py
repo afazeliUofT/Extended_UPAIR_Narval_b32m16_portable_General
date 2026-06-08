@@ -385,7 +385,7 @@ def _eval_cfg(train_cfg: dict[str, Any], variant_name: str, dmrs_case: str, num_
     set_cfg(cfg, "evaluation.compiled_receiver_error_counts", bool(get_cfg(cfg, "evaluation.compiled_receiver_error_counts", True)))
     set_cfg(cfg, "evaluation.memory_cleanup_every_microbatch", bool(get_cfg(cfg, "evaluation.memory_cleanup_every_microbatch", True)))
     set_cfg(cfg, "evaluation.memory_cleanup_every_batches", int(get_cfg(cfg, "evaluation.memory_cleanup_every_batches", 1)))
-    set_cfg(cfg, "evaluation.save_example_batch", variant_name == "main_d256_b4_r2" and num_users == 4)
+    set_cfg(cfg, "evaluation.save_example_batch", bool(get_cfg(cfg, "evaluation.save_example_batch", False)))
     return cfg
 
 

@@ -213,9 +213,9 @@ training:
   val_snr_sampling_mode: sampled_grid
 evaluation:
   resume: true
-  receiver_microbatch_size: 16
+  receiver_microbatch_size: 8
   stream_eval_microbatches: true
-  compiled_receiver_error_counts: true
+  compiled_receiver_error_counts: false
   receiver_call_jit_compile: false
   num_batches_per_point: 512
   min_num_batches_per_point: 16
@@ -229,10 +229,7 @@ evaluation:
   reliable_min_block_errors: 100
   reliable_min_bit_errors: 1000
   save_example_batch: false
-  nmse_receivers:
-  - baseline_ls_lmmse
-  - baseline_ls_2dlmmse_lmmse
-  - upair5g_lmmse
+  nmse_receivers: []
   memory_cleanup_every_batches: 1
   memory_cleanup_every_microbatch: true
   per_receiver_stopping: true
