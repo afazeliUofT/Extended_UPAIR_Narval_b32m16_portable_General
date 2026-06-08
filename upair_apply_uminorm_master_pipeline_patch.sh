@@ -920,7 +920,7 @@ else:
     bad("master pipeline Stage-B prefix is not UMiNorm")
 
 # Check variants from optuna_common and submit_lib.
-ns = {}
+ns = {"__file__": str(Path("scripts/optuna_1dmrs_common.py").resolve())}
 exec(compile(Path("scripts/optuna_1dmrs_common.py").read_text(), "scripts/optuna_1dmrs_common.py", "exec"), ns)
 variants = list(ns["VARIANTS"].keys())
 print("[INFO] optuna variants:", ",".join(variants))
