@@ -1,0 +1,61 @@
+2026-06-07 17:14:11.206602: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-06-07 17:14:11.206658: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-06-07 17:14:11.208444: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+
+====================================================================================================
+[PROBE] CONFIG SNAPSHOT
+====================================================================================================
+[PROBE] channel.family            : umi
+[PROBE] channel.normalize_channel : True
+[PROBE] umi.enable_pathloss       : False
+[PROBE] umi.enable_shadow_fading  : False
+[PROBE] near_far.enabled          : False
+[PROBE] near_far.mode             : disabled
+[PROBE] baselines cov cache       : empirical_covariances_umi_norm.npz
+[PROBE] baselines reuse_cache     : True
+2026-06-07 17:14:26.436188: E external/local_xla/xla/stream_executor/cuda/cuda_driver.cc:274] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
+
+====================================================================================================
+[PROBE] A — unit-power & equal-across-users (large-scale normalized away)
+====================================================================================================
+[PROBE] per-user mean|h|^2      : [1. 1. 1. 1.]
+[PROBE] per-user power (dB)     : [0. 0. 0. 0.]
+[PROBE] near-far spread (dB)    : 0.000  (want ~0 for normalized)
+[PROBE] overall mean|h|^2       : 1.0000  (want ~1.0)
+[PROBE][A] PASS: normalized channel is unit-power & equal-across-users.
+
+====================================================================================================
+[PROBE] B — estimator-facing tensor layout
+====================================================================================================
+[PROBE] y.shape = (8, 1, 16, 14, 96)
+[PROBE] h.shape = (8, 1, 16, 4, 1, 14, 96)  (expect [...,Nr, U, ...] with Nr=16, U=4)
+[PROBE][B] PASS: rx-antenna axis = 16, user axis = 4.
+
+====================================================================================================
+[PROBE] C — near-far machinery fully bypassed
+====================================================================================================
+[PROBE] last_near_far_stats populated? NO (good)
+[PROBE][C] PASS: _apply_fractional_power_control did not run.
+
+====================================================================================================
+[PROBE] D — SNR calibration / AWGN-once sanity
+====================================================================================================
+[PROBE] mean|y|^2 @ EbN0=60dB   : 4.0195e+00   (≈ signal power)
+[PROBE] mean|y|^2 @ EbN0=-6dB   : 5.9633e+00
+[PROBE] N0 @ 60dB / -6dB        : 4.895e-07 / 1.949e+00
+[PROBE] (low - high) mean|y|^2  : 1.9438e+00   (noise power proxy; should be >0 and ~ O(N0))
+[PROBE][D] PASS: y increases with lower Eb/N0 and N0 scales correctly (noise added exactly once, calibration sane).
+
+====================================================================================================
+[PROBE] E — LMMSE covariance cache staleness
+====================================================================================================
+[PROBE] configured cache         : empirical_covariances_umi_norm.npz
+[PROBE] new cache present?       : NO (will be built on first run)  []
+[PROBE] lingering near-far caches: none
+[PROBE][E][NOTE] reuse_cache=true is safe ONLY if the NEW-named cache reflects the normalized channel. If a new cache exists but predates the revert, delete it so it rebuilds.
+
+====================================================================================================
+[PROBE] SUMMARY
+====================================================================================================
+[PROBE] A(unit-power)=PASS  B(layout)=PASS  C(bypass)=PASS  D(SNR)=PASS
+[PROBE] If A-D PASS and E shows no stale cache, the normalized-UMi model is correctly and cleanly implemented in the standard link-level manner.
